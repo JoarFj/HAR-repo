@@ -1,5 +1,8 @@
 import numpy as np
 import tensorflow as tf
+
+
+print("hello ")
 from socket import NI_NUMERICHOST
 from symbol import yield_arg
 from uuid import NAMESPACE_X500
