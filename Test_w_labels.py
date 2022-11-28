@@ -15,19 +15,20 @@ import random
 import keras
 from tensorflow import lite
 import tensorflow as tf
-
+import sklearn
 import glob
 import pandas as pd
 import os
+import seaborn as sns
 # Get CSV files list from a folder
 
-pathname= 'C:\\SKOLA\\harren\\useData'
+pathname= 'C:\\Users\\User\\Desktop\\Byggsaker\\pycodes\\Gitjoar\\HAR-repo\\useData'
 #filenames should be named "RAW_xxxxxxxx"
-print(glob.glob('useData/RAW*.csv'))
+print(glob.glob('HAR-repo\\useData\\RAW*.csv'))
 # Concatenate all DataFrames
 
 alldf= []
-for one_filename in glob.glob('useData/RAW*.csv'):
+for one_filename in glob.glob('HAR-repo\\useData\\RAW*.csv'):
     print(f'loading {one_filename}')
     new_df= pd.read_csv(one_filename, header=None)
     alldf.append(new_df)
@@ -58,7 +59,7 @@ print(df[0:].shape, n_features)
 #All unique activities: 
 print(df.Activity.unique())
 #window size and how big step we move our window
-n_time_steps =250
+n_time_steps = 250
 step = 20
 segments = []
 labels = []
@@ -142,12 +143,24 @@ model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accur
 model.summary()
 '''
 
-model.fit(X_train, y_train, epochs = 15, validation_split = 0.10, batch_size = 1024, verbose = 1)
+model.fit(X_train, y_train, epochs = 10, validation_split = 0.10, batch_size = 1024, verbose = 1)
 
 #print(X_train.shape)
 #print(y_train.shape)
 #print("xsharone")
 #print(X_test[1:2].shape)
+
+predictions = model.predict(X_test)
+class_labels = ['Downstairs', 'Sitting', 'Standing', 'Upstairs', 'Walking']
+max_test = np.argmax(y_test, axis=1)
+max_predictions = np.argmax(predictions, axis=1)
+confusion_matrix = sklearn.metrics.confusion_matrix(max_test, max_predictions)
+sns.heatmap(confusion_matrix, xticklabels = class_labels, yticklabels = class_labels, annot = True, linewidths = 0.1, fmt='d', cmap = 'YlGnBu')
+plt.title("Confusion matrix", fontsize = 15)
+plt.ylabel('True label')
+plt.xlabel('Predicted label')
+plt.show()
+
 print(model.evaluate(X_test, y_test, verbose=0))
 run_model = tf.function(lambda x: model(x))
 # This is important, let's fix the input size.
