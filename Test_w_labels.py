@@ -9,12 +9,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import TimeSeriesSplit
+# SciPy 1.9.0 
 from scipy import stats
 import random
 import keras
 from tensorflow import lite
 import tensorflow as tf
-
+import seaborn as sns
 import glob
 import pandas as pd
 import os
@@ -54,6 +55,8 @@ else:
 #if gyro is included we have 7 features, else we have 4
 print(df[0:].shape, n_features)
 
+print('CNN or LSTM? ')
+models = input()
 #All unique activities: 
 print(df.Activity.unique())
 #window size and how big step we move our window
@@ -106,48 +109,79 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten, Reshape
 from keras.layers import Conv1D, MaxPooling1D
 
+if models == 'CNN':
 
-#CNN model
-model = Sequential()
-model.add(Conv1D(filters = 120, kernel_size=3 ,activation='relu',input_shape = (X_train.shape[1], X_train.shape[2])))
-model.add(Conv1D(filters=60, kernel_size=3, activation='relu'))
-model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
-model.add(Dropout(0.4))
-model.add(MaxPooling1D(pool_size=2))
-model.add(Flatten())
-model.add(Dense(100, activation='relu'))
-# Softmax layer
-model.add(Dense(y_train.shape[1], activation = 'softmax'))
-# Compile model
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-model.summary()
+    #CNN model
+    model = Sequential()
+    model.add(Conv1D(filters = 120, kernel_size=3 ,activation='relu',input_shape = (X_train.shape[1], X_train.shape[2])))
+    model.add(Conv1D(filters=60, kernel_size=3, activation='relu'))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(Dropout(0.4))
+    model.add(MaxPooling1D(pool_size=2))
+    model.add(Flatten())
+    model.add(Dense(100, activation='relu'))
+    # Softmax layer
+    model.add(Dense(y_train.shape[1], activation = 'softmax'))
+    # Compile model
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.summary()
+elif models == 'LSTM':
+    ##LSTM
+    from keras.models import Sequential
+    from keras.layers import LSTM, Dense, Flatten, Dropout
 
-'''
-##LSTM
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Flatten, Dropout
+    model = Sequential()
+    # RNN layer
+    model.add(LSTM(units = 64, input_shape = (X_train.shape[1], X_train.shape[2])))
+    # Dropout layer
+    model.add(Dropout(0.5)) 
+    # Dense layer with ReLu
+    model.add(Dense(units = 128, activation='relu'))
+    # Softmax layer
+    model.add(Dense(y_train.shape[1], activation = 'softmax'))
+    # Compile model
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.summary()
 
-model = Sequential()
-# RNN layer
-model.add(LSTM(units = 64, input_shape = (X_train.shape[1], X_train.shape[2])))
-# Dropout layer
-model.add(Dropout(0.5)) 
-# Dense layer with ReLu
-model.add(Dense(units = 128, activation='relu'))
-# Softmax layer
-model.add(Dense(y_train.shape[1], activation = 'softmax'))
-# Compile model
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-model.summary()
-'''
+print(" choose epochs: ")
+ep = input()
+epint = int(ep)
+model.fit(X_train, y_train, epochs = epint, validation_split = 0.10, batch_size = 1024, verbose = 1)
 
-model.fit(X_train, y_train, epochs = 15, validation_split = 0.10, batch_size = 1024, verbose = 1)
 
 #print(X_train.shape)
 #print(y_train.shape)
 #print("xsharone")
 #print(X_test[1:2].shape)
 print(model.evaluate(X_test, y_test, verbose=0))
+'''
+###EPOCH ITERATIONS IMAGE
+plt.plot(np.array(history.history['loss']), "r--", label = "Train loss")
+plt.plot(np.array(history.history['accuracy']), "g--", label = "Train accuracy")
+plt.plot(np.array(history.history['val_loss']), "r-", label = "Validation loss")
+plt.plot(np.array(history.history['val_accuracy']), "g-", label = "Validation accuracy")
+plt.title("Training session's progress over iterations")
+plt.legend(loc='lower left')
+plt.ylabel('Training Progress (Loss/Accuracy)')
+plt.xlabel('Training Epoch')
+plt.ylim(0) 
+plt.show()
+'''
+
+from sklearn.metrics import confusion_matrix
+### CONFUSION MATRIX
+predictions = model.predict(X_test)
+class_labels = ['biking','Downstairs', 'Jogging', 'Sitting', 'Standing', 'Upstairs', 'Walking']
+max_test = np.argmax(y_test, axis=1)
+max_predictions = np.argmax(predictions, axis=1)
+confusion_matrix = confusion_matrix(max_test, max_predictions)
+sns.heatmap(confusion_matrix, xticklabels = class_labels, yticklabels = class_labels, annot = True, linewidths = 0.1, fmt='d', cmap = 'YlGnBu')
+plt.title("Confusion matrix", fontsize = 15)
+plt.ylabel('True label')
+plt.xlabel('Predicted label')
+plt.show()
+
+
 run_model = tf.function(lambda x: model(x))
 # This is important, let's fix the input size.
 BATCH_SIZE = 1
@@ -161,11 +195,11 @@ MODEL_DIR = "cnn_lstm"
 model.save(MODEL_DIR, save_format="tf", signatures=concrete_func)
 
 
-#converting shiit
+#converting 
 converter = tf.lite.TFLiteConverter.from_saved_model(MODEL_DIR)
 tflite_model = converter.convert()
 
-with open('CNNconvertedwithgyro.tflite', 'wb') as f:
+with open('LSTMcomplexwithgyro.tflite', 'wb') as f:
     f.write(tflite_model)
 # Run the model with TensorFlow to get expected results.
 TEST_CASES = 10
